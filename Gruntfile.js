@@ -61,6 +61,12 @@ module.exports = function (grunt) {
 				cwd: 'typings/',
 				src: [ '**/*.d.ts', '!tsd.d.ts' ],
 				dest: 'dist/typings/'
+			},
+			testData: {
+				expand: true,
+				cwd: 'tests/',
+				src: [ '**/*.json' ],
+				dest: '_build/tests/'
 			}
 		},
 
@@ -234,7 +240,7 @@ module.exports = function (grunt) {
 		'copy:staticFiles',
 		'dtsGenerator:dist'
 	]);
-	grunt.registerTask('testPrep', ['dev', 'string-replace:testIgnoreUmdWrapper']);
+	grunt.registerTask('testPrep', ['dev', 'string-replace:testIgnoreUmdWrapper', 'copy:testData']);
 	grunt.registerTask('test', [ 'testPrep', 'intern:client' ]);
 	grunt.registerTask('test-streams', [ 'testPrep', 'intern:streams' ]);
 	grunt.registerTask('test-local', [ 'testPrep', 'intern:local' ]);

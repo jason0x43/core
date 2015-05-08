@@ -49,7 +49,6 @@
 		"./tests/intern.ts",
 		"./tests/functional/all.ts",
 		"./tests/support/dojo.ts",
-		"./tests/support/node.ts",
 		"./tests/support/node/http.ts",
 		"./tests/support/node/https.ts",
 		"./tests/support/node/url.ts",

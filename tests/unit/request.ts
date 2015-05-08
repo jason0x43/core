@@ -87,6 +87,30 @@ if (has('host-node')) {
 }
 
 if (has('host-browser')) {
+	suite['browser'] = {
+		'.get'() {
+			var dfd = this.async();
+			request.get((<any> require).toUrl('../support/data/foo.json'))
+				.then(
+					dfd.callback((response: any) => assert.deepEqual(JSON.parse(response.data), { foo: 'bar' })),
+					dfd.reject.bind(dfd)
+				);
+		},
+
+		'JSON filter'() {
+			request.filterRegistry.register(/foo.json$/, (response: Response<any>) => {
+				response.data = JSON.parse(String(response.data));
+				return response;
+			});
+
+			var dfd = this.async();
+			request.get((<any> require).toUrl('../support/data/foo.json'))
+				.then(
+					dfd.callback((response: any) => assert.deepEqual(response.data, { foo: 'bar' })),
+					dfd.reject.bind(dfd)
+				);
+		}
+	}
 }
 
 registerSuite(suite);
