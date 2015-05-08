@@ -1,6 +1,6 @@
 import registerSuite = require('intern!object');
 import assert = require('intern/chai!assert');
-import request, { Response } from 'src/request';
+import request, { Response, RequestOptions } from 'src/request';
 import { default as nodeRequest } from 'src/request/node';
 import { default as xhrRequest } from 'src/request/xhr';
 import has = require('intern/dojo/has');
@@ -18,30 +18,32 @@ let suite: { [name: string]: any } = {
 };
 
 if (has('host-node')) {
+	const serverPort = 8124;
+	const serverUrl = 'http://localhost:' + serverPort;
 	let server: any;
-	let serverPort = 8124;
-	let serverUrl = 'http://localhost:' + serverPort;
+	let nodeRequest: any;
+	let handle: any;
 
-	function getRequestUrl(dataKey: string): string {
+	let getRequestUrl = function (dataKey: string): string {
 		return serverUrl + '?dataKey=' + dataKey;
 	}
 
 	suite['node'] = {
 		setup() {
-			var dfd = new Deferred();
-			var responseData: { [name: string]: any } = {
-				fooBar: JSON.stringify({foo: "bar"}),
+			const dfd = new Deferred();
+			const responseData: { [name: string]: any } = {
+				'foo.json': JSON.stringify({foo: "bar"}),
 				invalidJson: '<not>JSON</not>'
 			};
 
 			function getResponseData(request: any) {
-				var parseQueryString = true;
-				var urlInfo = url.parse(request.url, parseQueryString);
+				const urlInfo = url.parse(request.url, true);
 				return responseData[urlInfo.query.dataKey];
 			}
 
 			server = http.createServer(function(request, response){
-				var body = getResponseData(request);
+				const body = getResponseData(request);
+				nodeRequest = request;
 
 				response.writeHead(200, {
 					'Content-Length': body.length,
@@ -61,23 +63,46 @@ if (has('host-node')) {
 			server.close();
 		},
 
-		'.get'() {
-			var dfd = this.async();
-			request.get(getRequestUrl('fooBar'))
-				.then(
-					dfd.callback((response: any) => assert.equal(String(response.data), JSON.stringify({foo: 'bar'}))),
-					dfd.reject.bind(dfd)
-				);
+		afterEach() {
+			if (handle) {
+				handle.destroy();
+				handle = null;
+			}
+		},
+
+		'.get': {
+			'simple request'() {
+				const dfd = this.async();
+				request.get(getRequestUrl('foo.json'))
+					.then(
+						dfd.callback((response: any) => assert.equal(String(response.data), JSON.stringify({foo: 'bar'}))),
+						dfd.reject.bind(dfd)
+					);
+			},
+
+			'custom headers'() {
+				const dfd = this.async();
+				const options: RequestOptions = { headers: { 'Content-Type': 'application/json' } };
+				request.get(getRequestUrl('foo.json'), options)
+					.then(
+						dfd.callback((response: any) => {
+							assert.equal(String(response.data), JSON.stringify({foo: 'bar'}));
+							assert.notProperty(nodeRequest.headers, 'Content-Type', 'expected header to be normalized');
+							assert.propertyVal(nodeRequest.headers, 'content-type', 'application/json');
+						}),
+						dfd.reject.bind(dfd)
+					);
+			}
 		},
 
 		'JSON filter'() {
-			request.filterRegistry.register(/fooBar$/, (response: Response<any>) => {
+			const handle = request.filterRegistry.register(/foo\.json$/, (response: Response<any>) => {
 				response.data = JSON.parse(String(response.data));
 				return response;
 			});
 
-			var dfd = this.async();
-			request.get(getRequestUrl('fooBar'))
+			const dfd = this.async();
+			request.get(getRequestUrl('foo.json'))
 				.then(
 					dfd.callback((response: any) => assert.deepEqual(response.data, {foo: 'bar'})),
 					dfd.reject.bind(dfd)
@@ -87,10 +112,14 @@ if (has('host-node')) {
 }
 
 if (has('host-browser')) {
+	let getRequestUrl = function (dataKey: string): string {
+		return (<any> require).toUrl('../support/data/' + dataKey);
+	}
+
 	suite['browser'] = {
 		'.get'() {
-			var dfd = this.async();
-			request.get((<any> require).toUrl('../support/data/foo.json'))
+			const dfd = this.async();
+			request.get(getRequestUrl('foo.json'))
 				.then(
 					dfd.callback((response: any) => assert.deepEqual(JSON.parse(response.data), { foo: 'bar' })),
 					dfd.reject.bind(dfd)
@@ -103,8 +132,8 @@ if (has('host-browser')) {
 				return response;
 			});
 
-			var dfd = this.async();
-			request.get((<any> require).toUrl('../support/data/foo.json'))
+			let dfd = this.async();
+			request.get(getRequestUrl('foo.json'))
 				.then(
 					dfd.callback((response: any) => assert.deepEqual(response.data, { foo: 'bar' })),
 					dfd.reject.bind(dfd)
