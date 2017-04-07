@@ -502,7 +502,7 @@ export default function node(url: string, options: NodeRequestOptions = {}): Tas
 								}
 							}
 							else {
-								data.data = String(dataAsBuffer);
+								data.data = dataAsBuffer;
 
 								response.emit({
 									type: 'end',
